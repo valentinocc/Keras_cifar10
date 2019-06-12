@@ -46,3 +46,46 @@ class LRFinder(Callback):
     def on_train_end(self, logs=None):
         plt.plot(self.lrs, self.losses)
         plt.show()
+
+class LR_adjuster(Callback):
+    '''
+    The learning rate is linearly increased from base_lr to max_lr, then linear decreased back to base_lr, and then
+    held constant at a low learning rate (min_lr) for the final epochs (Around 20-35% of epochs)
+    The idea was introduced by Leslie N. Smith in this paper: https://arxiv.org/abs/1506.01186
+    # Example
+        lra = LR_adjuster(15, min_lr = 0.002, max_lr = 0.1, base_lr = 0.04)
+        model.fit(x_train, y_train, epochs=1, batch_size=128, callbacks=[lra])
+    # Arguments
+        epochs: the amount of epochs used to train the neural network
+        base_lr: initial learning rate used in training
+        max_lr: the highest learning rate to be used in training, the learning rate will decrease after reaching this rate
+                this learning rate should be set using methods discussed in Smith's paper https://arxiv.org/pdf/1803.09820.pdf
+        min_lr: the learning rate to be used for the last 20-30% of epochs
+    '''
+
+    def __init__(self, epochs, min_lr = 0.0015, base_lr=0.01, max_lr=0.1):
+        self.base_lr = base_lr
+        self.max_lr = max_lr
+        self.min_lr = 0.0015
+        self.epochs_max_point = (epochs - 5) / 2
+        self.lr_step_size = (max_lr - base_lr) / self.epochs_max_point
+        self.lrs = []
+        self.lr = base_lr
+        self.epochs = epochs
+
+    def on_epoch_end(self, epoch, logs={}):
+
+        if (epoch < self.epochs_max_point):
+            self.lr = self.lr + self.lr_step_size
+        elif (epoch >= self.epochs_max_point and epoch < self.epochs_max_point * 2):
+            self.lr = self.lr - self.lr_step_size
+        else:
+            self.lr = self.min_lr
+
+        K.set_value(self.model.optimizer.lr, self.lr)
+        self.lrs.append(self.lr)
+    
+    def on_train_end(self, logs=None):
+        plt.plot( np.arange(self.epochs), self.lrs)
+        plt.show
+        print(self.lrs)
