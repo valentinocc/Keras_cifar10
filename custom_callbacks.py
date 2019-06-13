@@ -47,7 +47,7 @@ class LRFinder(Callback):
         plt.plot(self.lrs, self.losses)
         plt.show()
 
-class LR_adjuster(Callback):
+class LR_pattern_smith(Callback):
     '''
     The learning rate is linearly increased from base_lr to max_lr, then linear decreased back to base_lr, and then
     held constant at a low learning rate (min_lr) for the final epochs (Around 20-35% of epochs)
@@ -85,6 +85,40 @@ class LR_adjuster(Callback):
         K.set_value(self.model.optimizer.lr, self.lr)
         self.lrs.append(self.lr)
     
+    def on_train_end(self, logs=None):
+        plt.plot( np.arange(self.epochs), self.lrs)
+        plt.show
+        print(self.lrs)
+
+
+class LR_adjuster(Callback):
+    '''
+    The learning rate is linearly increased from base_lr to max_lr, then linear decreased back to base_lr, and then
+    held constant at a low learning rate (min_lr) for the final epochs (Around 20-35% of epochs)
+    The idea was introduced by Leslie N. Smith in this paper: https://arxiv.org/abs/1506.01186
+    # Example
+        lra = LR_adjuster(15, min_lr = 0.002, max_lr = 0.1, base_lr = 0.04)
+        model.fit(x_train, y_train, epochs=1, batch_size=128, callbacks=[lra])
+    # Arguments
+        epoch_switch: the epoch on which the base_lr is switched to the final_lr
+        base_lr: initial learning rate used in training
+        final_lr: the second learning rate to be used
+    '''
+
+    def __init__(self, epoch_switch, base_lr=0.002, final_lr=0.0002):
+        self.final_lr = final_lr
+        self.lrs = []
+        self.lr = base_lr
+        self.epoch_switch = epoch_switch
+
+    def on_epoch_end(self, epoch, logs={}):
+
+        if (epoch == self.epoch_switch):
+            self.lr = self.final_lr
+
+        K.set_value(self.model.optimizer.lr, self.lr)
+        self.lrs.append(self.lr)
+
     def on_train_end(self, logs=None):
         plt.plot( np.arange(self.epochs), self.lrs)
         plt.show
